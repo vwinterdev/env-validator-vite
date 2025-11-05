@@ -1,595 +1,169 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import type { ResolvedConfig } from 'vite'
-import { envValidatorVite } from '../src/index'
-import { SchemaVariant } from '../src/types'
+import { Plugin } from 'vite'
+import ValidateEnv, { Schema } from '../src/index'
+import { schema } from '@poppinss/validator-lite'
+import { z } from 'zod'
 
-describe('envValidatorVite', () => {
-  const originalConsoleError = console.error
-  const originalConsoleLog = console.log
+describe('ValidateEnv plugin', () => {
+  const mockConfig = {
+    env: {
+      VITE_PORT: '3000',
+      VITE_DEBUG: 'true',
+      VITE_API_URL: 'https://api.example.com',
+    },
+    root: process.cwd(),
+    envDir: '.',
+    envPrefix: 'VITE_',
+    mode: 'development',
+    command: 'serve',
+  }
 
   beforeEach(() => {
-    // Мокаем console методы для тестов
-    console.error = vi.fn()
-    console.log = vi.fn()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
   afterEach(() => {
-    // Восстанавливаем оригинальные методы
-    console.error = originalConsoleError
-    console.log = originalConsoleLog
+    vi.restoreAllMocks()
   })
 
-  describe('успешная валидация', () => {
-    it('должен валидировать STRING переменные', () => {
-      const plugin = envValidatorVite({
-        VITE_API_KEY: SchemaVariant.STRING,
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_API_KEY: 'secret-key',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).not.toThrow()
-
-      expect(console.log).toHaveBeenCalledWith('✓ All environment variables are valid\n')
+  it('should create a Vite plugin', () => {
+    const plugin = ValidateEnv({
+      schema: {
+        VITE_PORT: Schema.number(),
+      },
     })
 
-    it('должен валидировать URL переменные', () => {
-      const plugin = envValidatorVite({
-        VITE_API_URL: SchemaVariant.URL,
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_API_URL: 'https://api.example.com',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).not.toThrow()
-    })
-
-    it('должен валидировать NUMBER переменные', () => {
-      const plugin = envValidatorVite({
-        VITE_TIMEOUT: SchemaVariant.NUMBER,
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_TIMEOUT: '5000',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).not.toThrow()
-    })
-
-    it('должен валидировать BOOLEAN переменные', () => {
-      const plugin = envValidatorVite({
-        VITE_DEBUG: SchemaVariant.BOOLEAN,
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_DEBUG: 'true',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).not.toThrow()
-    })
-
-    it('должен валидировать ENUM переменные', () => {
-      const plugin = envValidatorVite({
-        VITE_ENV: {
-          schema: SchemaVariant.ENUM,
-          params: ['development', 'production', 'staging'],
-        },
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_ENV: 'development',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).not.toThrow()
-    })
-
-    it('должен валидировать несколько переменных одновременно', () => {
-      const plugin = envValidatorVite({
-        VITE_API_URL: SchemaVariant.URL,
-        VITE_API_KEY: SchemaVariant.STRING,
-        VITE_TIMEOUT: SchemaVariant.NUMBER,
-        VITE_DEBUG: SchemaVariant.BOOLEAN,
-        VITE_ENV: {
-          schema: SchemaVariant.ENUM,
-          params: ['development', 'production'],
-        },
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_API_URL: 'https://api.example.com',
-          VITE_API_KEY: 'secret-key',
-          VITE_TIMEOUT: '5000',
-          VITE_DEBUG: 'true',
-          VITE_ENV: 'production',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).not.toThrow()
-    })
-
-    it('не должен логировать при команде build', () => {
-      const plugin = envValidatorVite({
-        VITE_API_KEY: SchemaVariant.STRING,
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'build',
-        env: {
-          VITE_API_KEY: 'secret-key',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).not.toThrow()
-
-      expect(console.log).not.toHaveBeenCalled()
-    })
-
-    it('должен валидировать EMAIL переменные', () => {
-      const plugin = envValidatorVite({
-        VITE_EMAIL: SchemaVariant.EMAIL,
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_EMAIL: 'user@example.com',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).not.toThrow()
-    })
-
-    it('должен валидировать UUID переменные', () => {
-      const plugin = envValidatorVite({
-        VITE_USER_ID: SchemaVariant.UUID,
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_USER_ID: '550e8400-e29b-41d4-a716-446655440000',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).not.toThrow()
-    })
-
-    it('должен валидировать IP переменные', () => {
-      const plugin = envValidatorVite({
-        VITE_SERVER_IP: SchemaVariant.IP,
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_SERVER_IP: '192.168.1.1',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).not.toThrow()
-    })
-
-    it('должен валидировать INTEGER переменные', () => {
-      const plugin = envValidatorVite({
-        VITE_PORT: SchemaVariant.INTEGER,
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_PORT: '3000',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).not.toThrow()
-    })
-
-    it('должен валидировать POSITIVE_NUMBER переменные', () => {
-      const plugin = envValidatorVite({
-        VITE_TIMEOUT: SchemaVariant.POSITIVE_NUMBER,
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_TIMEOUT: '5000',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).not.toThrow()
-    })
-
-    it('должен валидировать DATE переменные', () => {
-      const plugin = envValidatorVite({
-        VITE_BUILD_DATE: SchemaVariant.DATE,
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_BUILD_DATE: '2023-12-25',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).not.toThrow()
-    })
-
-    it('должен валидировать MIN_LENGTH переменные', () => {
-      const plugin = envValidatorVite({
-        VITE_PASSWORD: {
-          schema: SchemaVariant.MIN_LENGTH,
-          params: 8,
-        },
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_PASSWORD: 'password123',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).not.toThrow()
-    })
-
-    it('должен валидировать REGEX переменные', () => {
-      const plugin = envValidatorVite({
-        VITE_VERSION: {
-          schema: SchemaVariant.REGEX,
-          params: /^v\d+\.\d+\.\d+$/,
-        },
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_VERSION: 'v1.2.3',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).not.toThrow()
-    })
-
-    it('должен валидировать MIN_NUMBER переменные', () => {
-      const plugin = envValidatorVite({
-        VITE_PORT: {
-          schema: SchemaVariant.MIN_NUMBER,
-          params: 1024,
-        },
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_PORT: '3000',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).not.toThrow()
-    })
-
-    it('должен валидировать MAX_NUMBER переменные', () => {
-      const plugin = envValidatorVite({
-        VITE_PORT: {
-          schema: SchemaVariant.MAX_NUMBER,
-          params: 65535,
-        },
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_PORT: '3000',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).not.toThrow()
-    })
+    expect(plugin).toBeDefined()
+    expect(plugin.name).toBe('env-validator')
+    expect(plugin.enforce).toBe('pre')
   })
 
-  describe('ошибки валидации', () => {
-    it('должен выбрасывать ошибку при отсутствии обязательной переменной', () => {
-      const plugin = envValidatorVite({
-        VITE_API_KEY: SchemaVariant.STRING,
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {},
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).toThrow('Invalid environment variables')
-
-      expect(console.error).toHaveBeenCalled()
+  it('should validate with default validator', async () => {
+    const plugin = ValidateEnv({
+      schema: {
+        VITE_PORT: Schema.number(),
+        VITE_DEBUG: Schema.boolean(),
+      },
     })
 
-    it('должен выбрасывать ошибку при невалидном URL', () => {
-      const plugin = envValidatorVite({
-        VITE_API_URL: SchemaVariant.URL,
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_API_URL: 'not-a-url',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).toThrow('Invalid environment variables')
-
-      expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining('Environment variables validation error:'),
-      )
-    })
-
-    it('должен выбрасывать ошибку при невалидном NUMBER', () => {
-      const plugin = envValidatorVite({
-        VITE_TIMEOUT: SchemaVariant.NUMBER,
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_TIMEOUT: 'not-a-number',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).toThrow('Invalid environment variables')
-    })
-
-    it('должен выбрасывать ошибку при невалидном ENUM значении', () => {
-      const plugin = envValidatorVite({
-        VITE_ENV: {
-          schema: SchemaVariant.ENUM,
-          params: ['development', 'production'],
-        },
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_ENV: 'invalid-value',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).toThrow('Invalid environment variables')
-    })
-
-    it('должен показывать найденные переменные окружения при ошибке', () => {
-      const plugin = envValidatorVite({
-        VITE_API_KEY: SchemaVariant.STRING,
-        VITE_API_URL: SchemaVariant.URL,
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {
-          VITE_API_KEY: 'secret',
-          VITE_API_URL: 'invalid-url',
-        },
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).toThrow('Invalid environment variables')
-
-      expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining('Found environment variables:'),
-      )
-    })
-
-    it('должен показывать сообщение об отсутствии переменных', () => {
-      const plugin = envValidatorVite({
-        VITE_API_KEY: SchemaVariant.STRING,
-      })
-
-      const mockConfig: Partial<ResolvedConfig> = {
-        command: 'serve',
-        env: {},
-      }
-
-      expect(() => {
-        const hook = plugin.configResolved
-        if (typeof hook === 'function') {
-          hook(mockConfig as ResolvedConfig)
-        } else if (hook?.handler) {
-          hook.handler(mockConfig as ResolvedConfig)
-        }
-      }).toThrow('Invalid environment variables')
-
-      expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining('(no variables found)'),
-      )
-    })
+    expect(plugin.configResolved).toBeDefined()
+    await expect(plugin.configResolved!(mockConfig as any)).resolves.not.toThrow()
   })
 
-  describe('метаданные плагина', () => {
-    it('должен иметь правильное имя', () => {
-      const plugin = envValidatorVite({
-        VITE_API_KEY: SchemaVariant.STRING,
-      })
-
-      expect(plugin.name).toBe('env-validator')
+  it('should validate with zod validator', async () => {
+    const plugin = ValidateEnv({
+      validator: 'zod',
+      schema: {
+        VITE_PORT: z.coerce.number(),
+        VITE_DEBUG: z.coerce.boolean(),
+      },
     })
 
-    it('должен иметь enforce: pre', () => {
-      const plugin = envValidatorVite({
-        VITE_API_KEY: SchemaVariant.STRING,
-      })
+    expect(plugin.configResolved).toBeDefined()
+    await expect(plugin.configResolved!(mockConfig as any)).resolves.not.toThrow()
+  })
 
-      expect(plugin.enforce).toBe('pre')
+  it('should use table render by default', async () => {
+    const plugin = ValidateEnv({
+      schema: {
+        VITE_PORT: Schema.number(),
+      },
     })
+
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await plugin.configResolved!(mockConfig as any)
+
+    expect(consoleSpy).toHaveBeenCalled()
+    consoleSpy.mockRestore()
+  })
+
+  it('should use console render when specified', async () => {
+    const plugin = ValidateEnv({
+      schema: {
+        VITE_PORT: Schema.number(),
+      },
+      render: 'console',
+    })
+
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await plugin.configResolved!(mockConfig as any)
+
+    expect(consoleSpy).toHaveBeenCalled()
+    consoleSpy.mockRestore()
+  })
+
+  it('should use custom render function', async () => {
+    const customRender = vi.fn()
+
+    const plugin = ValidateEnv({
+      schema: {
+        VITE_PORT: Schema.number(),
+      },
+      render: customRender,
+    })
+
+    await plugin.configResolved!(mockConfig as any)
+
+    expect(customRender).toHaveBeenCalled()
+    expect(Array.isArray(customRender.mock.calls[0][0])).toBe(true)
+  })
+
+  it('should handle validation errors gracefully', async () => {
+    const plugin = ValidateEnv({
+      schema: {
+        VITE_INVALID: Schema.number(),
+      },
+    })
+
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await plugin.configResolved!({
+      ...mockConfig,
+      env: {
+        VITE_PORT: '3000',
+      },
+    } as any)
+
+    expect(consoleLogSpy).toHaveBeenCalled()
+    consoleLogSpy.mockRestore()
+  })
+
+  it('should export Schema from @poppinss/validator-lite', () => {
+    expect(Schema).toBeDefined()
+    expect(Schema.string).toBeDefined()
+    expect(Schema.number).toBeDefined()
+    expect(Schema.boolean).toBeDefined()
+  })
+
+  it('should validate multiple environment variables', async () => {
+    const plugin = ValidateEnv({
+      schema: {
+        VITE_PORT: Schema.number(),
+        VITE_DEBUG: Schema.boolean(),
+        VITE_API_URL: Schema.string({ format: 'url' }),
+      },
+    })
+
+    await expect(plugin.configResolved!(mockConfig as any)).resolves.not.toThrow()
+  })
+
+  it('should handle optional values', async () => {
+    const plugin = ValidateEnv({
+      schema: {
+        VITE_PORT: Schema.number(),
+        VITE_OPTIONAL: Schema.string.optional(),
+      },
+    })
+
+    await expect(plugin.configResolved!({
+      ...mockConfig,
+      env: {
+        VITE_PORT: '3000',
+      },
+    } as any)).resolves.not.toThrow()
   })
 })
 

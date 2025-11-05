@@ -1,19 +1,19 @@
 {
   "name": "@vwinterdev/env-validator-vite",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Vite plugin for validating environment variables with built-in validators",
-  "type": "module",
   "license": "MIT",
   "files": [
     "dist"
   ],
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     },
     "./package.json": "./package.json"
   },
@@ -21,17 +21,19 @@
     "build": "tsdown",
     "dev": "tsdown --watch",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "dev:playground": "pnpm vite -c playground/vite.config.ts"
   },
   "peerDependencies": {
-    "vite": "^5.0.0"
+    "vite": "^5.0.0 || ^6.0.0 || ^7.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.9.2",
     "tsdown": "^0.15.9",
     "typescript": "^5.0.0",
-    "vite": "^5.0.0",
-    "vitest": "^4.0.6"
+    "vite": "^7.0.0",
+    "vitest": "^4.0.6",
+    "zod": "^4.1.12"
   },
   "keywords": [
     "vite",
@@ -51,5 +53,9 @@
   "homepage": "https://github.com/vwinterdev/env-validator-vite#readme",
   "bugs": {
     "url": "https://github.com/vwinterdev/env-validator-vite/issues"
+  },
+  "dependencies": {
+    "@poppinss/cliui": "^6.5.0",
+    "@poppinss/validator-lite": "^2.1.2"
   }
 }
