@@ -1,15 +1,15 @@
-# @vwinterdev/env-validator-vite
+# @vwinterdev/vite-env-validator
 
 Vite plugin for validating environment variables with support for multiple validators and customizable rendering.
 
 ## Installation
 
 ```bash
-npm install @vwinterdev/env-validator-vite
+npm install @vwinterdev/vite-env-validator
 # or
-pnpm add @vwinterdev/env-validator-vite
+pnpm add @vwinterdev/vite-env-validator
 # or
-yarn add @vwinterdev/env-validator-vite
+yarn add @vwinterdev/vite-env-validator
 ```
 
 **Note:** If you want to use the `zod` validator, you also need to install `zod`:
@@ -36,16 +36,17 @@ yarn add zod
 ```ts
 // vite.config.ts
 import { defineConfig } from 'vite'
-import ValidateEnv, { Schema } from '@vwinterdev/env-validator-vite'
+import ValidateEnv from '@vwinterdev/vite-env-validator'
+import { schema } from '@poppinss/validator-lite'
 
 export default defineConfig({
   plugins: [
     ValidateEnv({
       schema: {
-        VITE_API_URL: Schema.string({ format: 'url' }),
-        VITE_PORT: Schema.number(),
-        VITE_DEBUG: Schema.boolean(),
-        VITE_API_KEY: Schema.string(),
+        VITE_API_URL: schema.string({ format: 'url' }),
+        VITE_PORT: schema.number(),
+        VITE_DEBUG: schema.boolean(),
+        VITE_API_KEY: schema.string(),
       },
     }),
   ],
@@ -57,7 +58,7 @@ export default defineConfig({
 ```ts
 // vite.config.ts
 import { defineConfig } from 'vite'
-import ValidateEnv from '@vwinterdev/env-validator-vite'
+import ValidateEnv from '@vwinterdev/vite-env-validator'
 import { z } from 'zod'
 
 export default defineConfig({
@@ -111,32 +112,32 @@ interface ValidatorOptions {
 ### Default Validator (`@poppinss/validator-lite`)
 
 ```ts
-import { Schema } from '@vwinterdev/env-validator-vite'
+import { schema } from '@poppinss/validator-lite'
 
 const schema = {
   // String validators
-  VITE_API_URL: Schema.string({ format: 'url' }),
-  VITE_EMAIL: Schema.string({ format: 'email' }),
-  VITE_UUID: Schema.string({ format: 'uuid' }),
-  VITE_HOST: Schema.string({ format: 'host' }),
-  VITE_API_KEY: Schema.string(),
+  VITE_API_URL: schema.string({ format: 'url' }),
+  VITE_EMAIL: schema.string({ format: 'email' }),
+  VITE_UUID: schema.string({ format: 'uuid' }),
+  VITE_HOST: schema.string({ format: 'host' }),
+  VITE_API_KEY: schema.string(),
   
   // Optional string
-  VITE_OPTIONAL_KEY: Schema.string.optional(),
+  VITE_OPTIONAL_KEY: schema.string.optional(),
   
   // Number validators (automatically converts strings to numbers)
-  VITE_PORT: Schema.number(),
-  VITE_TIMEOUT: Schema.number(),
-  VITE_OPTIONAL_PORT: Schema.number.optional(),
+  VITE_PORT: schema.number(),
+  VITE_TIMEOUT: schema.number(),
+  VITE_OPTIONAL_PORT: schema.number.optional(),
   
   // Boolean validators (automatically converts 'true'/'1' → true, 'false'/'0' → false)
-  VITE_DEBUG: Schema.boolean(),
-  VITE_CACHE: Schema.boolean(),
-  VITE_OPTIONAL_FLAG: Schema.boolean.optional(),
+  VITE_DEBUG: schema.boolean(),
+  VITE_CACHE: schema.boolean(),
+  VITE_OPTIONAL_FLAG: schema.boolean.optional(),
   
   // Enum validators
-  VITE_ENV: Schema.enum(['development', 'production', 'staging'] as const),
-  VITE_LOG_LEVEL: Schema.enum(['debug', 'info', 'warn', 'error'] as const),
+  VITE_ENV: schema.enum(['development', 'production', 'staging'] as const),
+  VITE_LOG_LEVEL: schema.enum(['debug', 'info', 'warn', 'error'] as const),
 }
 ```
 
@@ -217,18 +218,19 @@ ValidateEnv({
 ```ts
 // vite.config.ts
 import { defineConfig } from 'vite'
-import ValidateEnv, { Schema } from '@vwinterdev/env-validator-vite'
+import ValidateEnv from '@vwinterdev/vite-env-validator'
+import { schema } from '@poppinss/validator-lite'
 
 export default defineConfig({
   plugins: [
     ValidateEnv({
       validator: 'default',
       schema: {
-        VITE_API_URL: Schema.string({ format: 'url' }),
-        VITE_PORT: Schema.number(),
-        VITE_DEBUG: Schema.boolean(),
-        VITE_ENV: Schema.enum(['development', 'production'] as const),
-        VITE_API_KEY: Schema.string(),
+        VITE_API_URL: schema.string({ format: 'url' }),
+        VITE_PORT: schema.number(),
+        VITE_DEBUG: schema.boolean(),
+        VITE_ENV: schema.enum(['development', 'production'] as const),
+        VITE_API_KEY: schema.string(),
       },
       render: 'table',
     }),
@@ -275,6 +277,62 @@ The plugin automatically converts string values from `.env` files to appropriate
 - `Schema.boolean()` → converts `"true"` → `true`, `"false"` → `false`
 - `z.coerce.number()` → converts `"123"` → `123`
 - `z.coerce.boolean()` → converts `"true"` → `true`
+
+## Development
+
+### Setup
+
+```bash
+pnpm install
+```
+
+### Build
+
+```bash
+pnpm build
+```
+
+### Test
+
+```bash
+pnpm test
+```
+
+### CI/CD
+
+This project uses GitHub Actions for automated testing and publishing.
+
+#### Automatic Publishing
+
+The package is automatically published to npm when you create a git tag:
+
+```bash
+# Bump version manually in package.json
+git add package.json
+git commit -m "chore: bump version to 2.0.2"
+git tag v2.0.2
+git push origin main --tags
+```
+
+#### Manual Publishing via GitHub Actions
+
+You can also trigger a version bump and publish manually:
+
+1. Go to **Actions** tab in GitHub
+2. Select **Publish to npm** workflow
+3. Click **Run workflow**
+4. Choose version bump type (patch, minor, major)
+5. Click **Run workflow**
+
+#### Setup NPM Token
+
+To enable automatic publishing, add your npm token to GitHub Secrets:
+
+1. Go to your repository **Settings** → **Secrets and variables** → **Actions**
+2. Click **New repository secret**
+3. Name: `NPM_TOKEN`
+4. Value: Your npm access token (create at https://www.npmjs.com/settings/vwinterdev/tokens)
+5. Click **Add secret**
 
 ## License
 
