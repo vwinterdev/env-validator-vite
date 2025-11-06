@@ -1,6 +1,6 @@
 {
   "name": "@vwinterdev/vite-env-validator",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "private": false,
   "description": "Vite plugin for validating environment variables with built-in validators",
   "license": "MIT",
